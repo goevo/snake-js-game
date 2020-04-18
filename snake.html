@@ -1,0 +1,316 @@
+<html>
+
+<head>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snake!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        #container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        .container-horizontal {
+            width: 600px;
+        }
+
+        #title {
+            width: 100%;
+            width: 600px;
+        }
+
+        button {
+            cursor: pointer;
+            height: 40px;
+            width: calc(50% - 10px);
+            border: 1px solid black;
+            margin: 20px 0 0 0;
+            color: black;
+            text-transform: uppercase;
+            font-size: .7em;
+            letter-spacing: 2px;
+            background: #f5f5f5;
+            transition: all .5s ease-Out;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 300;
+        }
+
+        button:first-child {
+            margin-right: 10px;
+        }
+
+        button:last-child {
+            margin-left: 10px;
+        }
+
+        button:hover {
+            letter-spacing: 10px;
+            background: #111;
+            color: #eee;
+        }
+
+        .small {
+            font-size: 0.6em;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="container">
+        <h1 id="title">snake it, dood.</h1>
+        <canvas id="game"></canvas>
+        <div class="container-horizontal">
+            <button id="faster">faster<br><span class="small">(space bar)</span></button><button id="zoomout">zoom
+                out<br><span class="small">(w)</span></button>
+        </div>
+        <!-- <div class="container-horizontal">
+            <button id="dig">dig</button><button id="undig">don't dig</button>
+        </div> -->
+    </div>
+
+
+    <script>
+        /*ideas
+        - local highscores
+        - titles
+        - dig mode
+        */
+
+        var canvas, ctx;
+        var interval, dig, titleIndex = 0;
+        const tiles = [15, 12, 10, 8, 6, 5];
+        const setup = {
+            width: 600,
+            height: 600
+        };
+        function getTile() {
+            return tiles[game.tileIndex]
+        }
+        var game, gameDefault = {
+            snake: [[14, 14], [15, 14], [16, 14], [17, 14]],
+            direction: [-1, 0],
+            apple: [8, 2],
+            movesPerSecond: 10,
+            tileIndex: 0
+        };
+        const motivationTitles = [
+            "you're snaking it, dood.",
+            "you're snaking it, dood.",
+            "you're really snaking it, dood.",
+            "do I smell a new record, dood?",
+            "don't stuff it up now.",
+            "ya little ripper, dood.",
+            "holy freaking snickerdoodle, dood.",
+            "go, go, go.",
+            "bee da boop da bee, dood.",
+            "k, yeah, i'm getting bored.",
+            "let's goooooooo, dood.",
+            "zip, zip, zip, dood.",
+            "girls can be dood's too, dood.",
+            "k, this run is totally rad, dood.",
+            "snakey, snakey, dood.",
+            "slither, slither, dood.",
+            "ok, now you're just showing off, dood.",
+            "zzzzz, dood.",
+            "this guy is good, dood.",
+            "ok, fine, you win, dood."
+        ];
+        const failureTitles = [
+            "well... you buggered it.",
+            "rubbish.",
+            "welp.",
+            "crikey!",
+            "eh.",
+            "eh. good on ya...",
+            "stuffed it."
+        ];
+
+        window.onload = function () {
+            canvas = document.getElementById("game");
+            ctx = canvas.getContext("2d");
+            canvas.width = setup.width;
+            canvas.height = setup.height;
+            document.getElementById('game').width = setup.width;
+            document.getElementById('game').height = setup.height;
+            document.getElementById('faster').onclick = faster;
+            document.getElementById('zoomout').onclick = zoomout;
+            // document.getElementById('dig').onclick = init_dig;
+            // document.getElementById('undig').onclick = init;
+
+            document.addEventListener("keydown", keyDownEvent);
+
+            init();
+        }
+
+        function init() {
+            dig = false;
+            titleIndex = 0;
+            game = JSON.parse(JSON.stringify(gameDefault));
+            if (interval !== undefined) clearInterval(interval);
+            interval = setInterval(() => {
+                draw();
+            }, 1000 / game.movesPerSecond);
+        }
+
+        function init_dig() {
+            dig = true;
+            game = JSON.parse(JSON.stringify(gameDefault));
+
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for (i = 0; i < 500; i++) {
+                ctx.fillStyle = "#F17C5C";
+                let a = [Math.floor(Math.random() * setup.width / getTile()), Math.floor(Math.random() * setup.height / getTile())];
+                ctx.fillRect(a[0] * getTile(), a[1] * getTile(), getTile(), getTile());
+            }
+
+            if (interval !== undefined) clearInterval(interval);
+            interval = setInterval(() => {
+                draw_dig();
+            }, 1000 / game.movesPerSecond);
+        }
+
+        function draw_dig() {
+            //move snake
+            game.snake.unshift([
+                (game.snake[0][0] + game.direction[0] + (setup.width / getTile())) % (setup.width / getTile()),
+                (game.snake[0][1] + game.direction[1] + (setup.height / getTile())) % (setup.height / getTile())
+            ]);
+
+            //extend snake 
+            if (ctx.getImageData(game.snake[0][0] * getTile(), game.snake[0][1] * getTile(), 1, 1).data[0] == 0) {
+                let tail = game.snake.pop();
+                ctx.fillStyle = "black";
+                ctx.fillRect(tail[0] * getTile(), tail[1] * getTile(), getTile(), getTile());
+            }
+
+            //draw snake
+            for (let bit of game.snake) {
+                ctx.fillStyle = "white";
+                ctx.fillRect(bit[0] * getTile(), bit[1] * getTile(), getTile(), getTile());
+            }
+
+            //check for collision
+            for (let bit of game.snake.slice(1)) {
+                if (bit[0] == game.snake[0][0] && bit[1] == game.snake[0][1]) {
+                    init_dig();
+                    break;
+                }
+            }
+
+        }
+
+
+        function draw() {
+
+            //move snake
+            game.snake.unshift([
+                (game.snake[0][0] + game.direction[0] + (setup.width / getTile())) % (setup.width / getTile()),
+                (game.snake[0][1] + game.direction[1] + (setup.height / getTile())) % (setup.height / getTile())
+            ]);
+
+            //extend snake 
+            if (game.snake[0][0] == game.apple[0] && game.snake[0][1] == game.apple[1]) {
+                game.apple = getApple();
+                if (Math.random() > 0.5) {
+                    document.getElementById("title").innerHTML = motivationTitles[Math.min(titleIndex, motivationTitles.length - 1)];
+                    titleIndex++;
+                }
+            } else {
+                game.snake.pop();
+            }
+
+            //paint background
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            //draw snake
+            for (let bit of game.snake) {
+                ctx.fillStyle = "white";
+                ctx.fillRect(bit[0] * getTile(), bit[1] * getTile(), getTile(), getTile());
+            }
+
+            //draw apple
+            ctx.fillStyle = "#F17C5C";
+            ctx.fillRect(game.apple[0] * getTile(), game.apple[1] * getTile(), getTile(), getTile());
+
+            //check for collision
+            for (let bit of game.snake.slice(1)) {
+                if (bit[0] == game.snake[0][0] && bit[1] == game.snake[0][1]) {
+                    document.getElementById("title").innerHTML = failureTitles[Math.floor(Math.random() * failureTitles.length)];
+                    init();
+                    draw();
+                    break;
+                }
+            }
+
+        }
+
+        function getApple() {
+            let newApple;
+            do { newApple = [Math.floor(Math.random() * setup.width / getTile()), Math.floor(Math.random() * setup.height / getTile())]; }
+            while (function () {
+                for (let bit of game.snake) {
+                    if (bit[0] == newApple[0] && bit[1] == newApple[1])
+                        return true;
+                }
+                return false;
+            }());
+            return newApple;
+        }
+
+        function faster() {
+            game.movesPerSecond++;
+            clearInterval(interval);
+            if (dig)
+                interval = setInterval(() => {
+                    draw_dig()
+                }, 1000 / game.movesPerSecond);
+            if (!dig)
+                interval = setInterval(() => {
+                    draw()
+                }, 1000 / game.movesPerSecond);
+        }
+
+        function zoomout() {
+            if (game.tileIndex + 1 == tiles.length) return;
+            game.tileIndex++;
+            faster();
+        }
+
+        function keyDownEvent(e) {
+            switch (e.keyCode) {
+                case 37: //left
+                    game.direction = [-1, 0];
+                    break;
+                case 38: //down
+                    game.direction = [0, -1];
+                    break;
+                case 39: //right
+                    game.direction = [1, 0];
+                    break;
+                case 40: //up
+                    game.direction = [0, 1];
+                    break;
+                case 32: //space
+                    faster();
+                    break;
+                case 87: //w
+                    zoomout();
+                    break;
+            }
+
+        }
+    </script>
+</body>
+
+</html>
